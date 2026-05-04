@@ -16,7 +16,7 @@ class Merchant(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     id: str
-    company_id: str = Field(alias="company_id")
+    company_id: str | None = Field(alias="company_id", default=None)
     name: str
     code: str
     qr_payload: str = Field(alias="qr_payload")
@@ -25,5 +25,6 @@ class Merchant(BaseModel):
     today_count: int = Field(alias="today_count")
     month_total: int = Field(alias="month_total")
     unread_count: int = Field(alias="unread_count")
+    last_transaction_amount: int | None = Field(alias="last_transaction_amount", default=None)
     last_transaction_at: str | None = Field(alias="last_transaction_at", default=None)
     created_at: str = Field(alias="created_at")

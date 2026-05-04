@@ -84,6 +84,68 @@ def test_transaction_link_has_invoice_and_link_url():
     assert wire["link_url"] == "https://paprika.app/pay/test"
 
 
+def test_merchant_last_transaction_fields_present_when_set():
+    """last_transaction_amount and last_transaction_at appear in wire output when set."""
+    m = Merchant(
+        id="mch_02",
+        company_id="cmp_01",
+        name="Warung",
+        code="WK4F82D19PQ7M3XR9LB4",
+        qr_payload="paprika://merchant/WK4F82D19PQ7M3XR9LB4",
+        capabilities=Capabilities(scan_cpm=True, cpm_ceiling=2000000),
+        today_total=50000,
+        today_count=1,
+        month_total=50000,
+        unread_count=0,
+        last_transaction_amount=5000,
+        last_transaction_at="2026-05-04T07:37:00Z",
+        created_at="2024-01-01T00:00:00+07:00",
+    )
+    wire = m.model_dump(by_alias=True)
+    assert wire["last_transaction_amount"] == 5000
+    assert wire["last_transaction_at"] == "2026-05-04T07:37:00Z"
+
+
+def test_merchant_last_transaction_fields_null_when_never_paid():
+    """Both fields must be None (and omitted under exclude_none) for never-paid merchants."""
+    m = Merchant(
+        id="mch_03",
+        company_id="cmp_01",
+        name="Gerobak Rica",
+        code="GR4P2KJ7DZQ9WK4F8M3F4",
+        qr_payload="paprika://merchant/GR4P2KJ7DZQ9WK4F8M3F4",
+        capabilities=Capabilities(scan_cpm=False, cpm_ceiling=None),
+        today_total=0,
+        today_count=0,
+        month_total=0,
+        unread_count=0,
+        created_at="2024-01-01T00:00:00+07:00",
+    )
+    wire_full = m.model_dump(by_alias=True)
+    wire_exclude_none = m.model_dump(by_alias=True, exclude_none=True)
+    assert wire_full["last_transaction_amount"] is None
+    assert wire_full["last_transaction_at"] is None
+    assert "last_transaction_amount" not in wire_exclude_none
+    assert "last_transaction_at" not in wire_exclude_none
+
+
+def test_merchant_fixture_last_tx_amounts():
+    """Seeded fixtures carry deterministic last_transaction_amount values."""
+    import sys, os
+    sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
+    from fixtures.merchants import MERCHANT_WARUNG_KOSAN, MERCHANT_KANTIN_PAGI, MERCHANT_GEROBAK_RICA
+
+    assert MERCHANT_WARUNG_KOSAN.last_transaction_amount == 5000
+    assert MERCHANT_WARUNG_KOSAN.last_transaction_at is not None
+
+    assert MERCHANT_KANTIN_PAGI.last_transaction_amount == 10000
+    assert MERCHANT_KANTIN_PAGI.last_transaction_at is not None
+
+    # Gerobak Rica has never received a payment.
+    assert MERCHANT_GEROBAK_RICA.last_transaction_amount is None
+    assert MERCHANT_GEROBAK_RICA.last_transaction_at is None
+
+
 def test_transaction_qris_has_payer_block():
     txn = Transaction(
         id="txn_03",
