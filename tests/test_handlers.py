@@ -18,7 +18,13 @@ from fastapi.testclient import TestClient
 
 # Must import after sys.path adjustment.
 from main import create_app
-from fixtures.merchants import MERCHANTS
+from fixtures.company import COMPANY
+from fixtures.merchants import (
+    MERCHANT_UNCLAIMED_KOPI_TENDA,
+    MERCHANTS,
+    MERCHANT_CODE_INDEX,
+    UNCLAIMED_MERCHANTS,
+)
 from fixtures.transactions import TRANSACTIONS
 from middleware.idempotency import _STORE
 
@@ -38,6 +44,16 @@ def reset_state():
     for mid, merchant in list(MERCHANTS.items()):
         if merchant.unread_count == 0 and mid == "mch_01HX3R9WKQF4P2KJ7DZM":
             MERCHANTS[mid] = merchant.model_copy(update={"unread_count": 2})
+    # Restore the unclaimed merchant so the 201-claim test can re-run.
+    if MERCHANT_UNCLAIMED_KOPI_TENDA.id not in UNCLAIMED_MERCHANTS:
+        UNCLAIMED_MERCHANTS[MERCHANT_UNCLAIMED_KOPI_TENDA.id] = (
+            MERCHANT_UNCLAIMED_KOPI_TENDA
+        )
+        MERCHANT_CODE_INDEX[MERCHANT_UNCLAIMED_KOPI_TENDA.code] = (
+            MERCHANT_UNCLAIMED_KOPI_TENDA.id
+        )
+    if MERCHANT_UNCLAIMED_KOPI_TENDA.id in MERCHANTS:
+        del MERCHANTS[MERCHANT_UNCLAIMED_KOPI_TENDA.id]
     yield
     _STORE.clear()
 
@@ -253,3 +269,101 @@ def test_seen_merchant_resets_unread(client):
     r = client.post(f"/v1/merchants/{WK_ID}/seen", headers=AUTH)
     assert r.status_code == 200
     assert r.json()["unread_count"] == 0
+
+
+def test_seen_company_returns_204_no_body(client):
+    r = client.post("/v1/company/seen", headers=AUTH)
+    assert r.status_code == 204
+    assert r.content == b""
+
+
+def test_logout_returns_204_no_body(client):
+    r = client.post("/v1/sessions/logout", headers=AUTH)
+    assert r.status_code == 204
+    assert r.content == b""
+
+
+def test_claim_unclaimed_merchant_returns_201(client):
+    r = client.post(
+        "/v1/merchants/claim",
+        json={"merchant_code": MERCHANT_UNCLAIMED_KOPI_TENDA.code},
+        headers=AUTH,
+    )
+    assert r.status_code == 201
+    body = r.json()
+    assert body["id"] == MERCHANT_UNCLAIMED_KOPI_TENDA.id
+    assert body["company_id"] == COMPANY.id
+    # Second claim returns 200 (already linked).
+    r2 = client.post(
+        "/v1/merchants/claim",
+        json={"merchant_code": MERCHANT_UNCLAIMED_KOPI_TENDA.code},
+        headers=AUTH,
+    )
+    assert r2.status_code == 200
+
+
+def test_claim_already_linked_returns_200(client):
+    """A merchant already in MERCHANTS for our company returns 200, not 201."""
+    wk_code = MERCHANTS[WK_ID].code
+    r = client.post(
+        "/v1/merchants/claim",
+        json={"merchant_code": wk_code},
+        headers=AUTH,
+    )
+    assert r.status_code == 200
+
+
+def test_trigger_expire_settles_pending_txn(client):
+    create = client.post(
+        f"/v1/merchants/{WK_ID}/qris",
+        json={"amount": 25000},
+        headers={**AUTH, "Idempotency-Key": "expire-test-key"},
+    )
+    assert create.status_code == 201
+    txn_id = create.json()["transaction"]["id"]
+
+    r = client.post(
+        "/v1/_dev/trigger-expire",
+        json={"transaction_id": txn_id},
+    )
+    assert r.status_code == 200
+    assert r.json()["emitted"] == "transaction.expired"
+    assert TRANSACTIONS[txn_id].status == "expired"
+
+
+def test_trigger_payment_with_existing_txn_id(client):
+    create = client.post(
+        f"/v1/merchants/{WK_ID}/qris",
+        json={"amount": 30000},
+        headers={**AUTH, "Idempotency-Key": "settle-test-key"},
+    )
+    txn_id = create.json()["transaction"]["id"]
+
+    r = client.post(
+        "/v1/_dev/trigger-payment",
+        json={"transaction_id": txn_id},
+    )
+    assert r.status_code == 202
+    assert r.json()["transaction_id"] == txn_id
+
+
+def test_link_invoice_lowercase_rejected(client):
+    """Spec §4.5 invoice_number regex is case-sensitive ^[A-Z0-9-]{1,40}$."""
+    r = client.post(
+        f"/v1/merchants/{WK_ID}/links",
+        json={
+            "title": "May rent",
+            "amount": 100000,
+            "customer": "Andi",
+            "invoice_number": "inv-001",
+        },
+        headers={**AUTH, "Idempotency-Key": "lower-inv-key"},
+    )
+    assert r.status_code == 400
+    assert r.json()["error"] == "invalid_request"
+
+
+def test_health_no_auth_required(client):
+    r = client.get("/health")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}

@@ -12,7 +12,7 @@ from middleware.idempotency import check_idempotency, get_device_id, store_idemp
 from middleware.language import get_locale
 from models.errors import make_error
 from models.requests import LinkCreateRequest, QrisCreateRequest, ScanRequest
-from models.transaction import Cpm, Payer, Transaction
+from models.transaction import Cpm, Transaction
 from websocket.events import transaction_cancelled_event, transaction_created_event
 from websocket.handler import broadcast
 
@@ -152,9 +152,9 @@ async def create_link(request: Request, merchant_id: str) -> JSONResponse:
     if data.amount <= 0:
         return JSONResponse(status_code=400, content=make_error("amount_too_low", locale))
 
-    # Invoice number handling — Spec §4.5.
+    # Invoice number handling — Spec §4.5 (case-sensitive ^[A-Z0-9-]{1,40}$).
     if data.invoice_number:
-        inv = data.invoice_number.strip().upper()
+        inv = data.invoice_number.strip()
         if not _INVOICE_NUMBER_RE.match(inv):
             return JSONResponse(status_code=400, content=make_error("invalid_request", locale))
         if INVOICE_TAKEN.get((merchant_id, inv)):
@@ -350,6 +350,17 @@ async def cancel_transaction(request: Request, transaction_id: str) -> JSONRespo
                 return JSONResponse(status_code=422, content=make_error("idempotency_mismatch", locale))
             return JSONResponse(status_code=cached["status"], content=cached["body"])
 
+    reason: str | None = None
+    if body_bytes:
+        try:
+            parsed = json.loads(body_bytes)
+            if isinstance(parsed, dict):
+                raw_reason = parsed.get("reason")
+                if isinstance(raw_reason, str) and raw_reason.strip():
+                    reason = raw_reason.strip()
+        except Exception:
+            reason = None
+
     cancelled = txn.model_copy(update={"status": "cancelled"})
     TRANSACTIONS[transaction_id] = cancelled
 
@@ -357,6 +368,6 @@ async def cancel_transaction(request: Request, transaction_id: str) -> JSONRespo
     if idempotency_key:
         store_idempotency(idempotency_key, device_id, body_bytes, 200, body)
 
-    await broadcast(transaction_cancelled_event(transaction_id, txn.merchant_id))
+    await broadcast(transaction_cancelled_event(transaction_id, txn.merchant_id, reason))
 
     return JSONResponse(status_code=200, content=body)

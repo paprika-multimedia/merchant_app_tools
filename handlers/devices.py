@@ -1,7 +1,7 @@
 import json
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from middleware.language import get_locale
 from models.errors import make_error
@@ -20,6 +20,6 @@ async def register_push(request: Request) -> JSONResponse:
     return JSONResponse(status_code=200, content={"registered": True})
 
 
-async def unregister_push(request: Request) -> JSONResponse:
+async def unregister_push(request: Request) -> Response:
     """DELETE /v1/devices/me/push — Spec §4.7. Simulator no-ops."""
-    return JSONResponse(status_code=204, content=None)
+    return Response(status_code=204)

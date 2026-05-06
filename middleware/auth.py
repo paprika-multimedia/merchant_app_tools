@@ -10,6 +10,7 @@ UNAUTHENTICATED_PATHS: frozenset[str] = frozenset(
     {
         "/v1/sessions/claim",
         "/v1/sessions/refresh",
+        "/health",
     }
 )
 

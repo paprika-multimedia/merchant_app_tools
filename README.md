@@ -16,6 +16,13 @@
 ## Quick Start
 
 ```bash
+# Mac / Linux / Git Bash
+./run.sh
+
+# Windows
+run.bat
+
+# Or manually
 pip install -r requirements.txt
 python main.py
 # Server starts on http://localhost:8080
@@ -23,10 +30,52 @@ python main.py
 
 ---
 
+## Dev Tools — `dev_tools/`
+
+A small folder of stdlib-only Python helpers for poking the running simulator.
+Both scripts read `dev_tools/config.json` (base_url, ws_url, session_token,
+merchant_id) so URL/merchant only need to be set in one place.
+
+| File | What |
+|---|---|
+| `dev_tools/config.json` | Shared config: `base_url`, `ws_url`, `session_token`, `merchant_id` |
+| `dev_tools/trigger.py` | Interactive menu — pick `1`–`5`, follow prompts |
+| `dev_tools/listen.py` | WebSocket listener — auths and prints every event |
+| `dev_tools/trigger.{sh,bat}` | Launchers for `trigger.py` |
+| `dev_tools/listen.{sh,bat}` | Launchers for `listen.py` |
+
+Typical usage:
+
+```bash
+# Terminal 1 — simulator
+./run.sh
+
+# Terminal 2 — WS listener (events stream here as they happen)
+./dev_tools/listen.sh
+
+# Terminal 3 — trigger menu
+./dev_tools/trigger.sh
+```
+
+The trigger menu:
+```
+1) Trigger payment           (asks for amount, settles via WS after delay)
+2) Expire pending txn        (asks for transaction id)
+3) Fail pending txn          (asks for transaction id + optional reason)
+4) Toggle merchant scan_cpm
+5) Force-logout device
+```
+
+Edit `dev_tools/config.json` if you run on a different port or want to target a
+different merchant.
+
+---
+
 ## Documentation
 
 | File | Responsibility |
 |------|---------------|
+| `how_to_use.md` | Practical, copy-paste guide for running and triggering |
 | `docs/file-index.md` | Quick file lookup — find any file by responsibility |
 | `docs/coding-standards.md` | Python-specific coding rules and conventions |
 | `docs/simulator-guide.md` | Full implementation guide: endpoints, WebSocket, fixtures |
@@ -81,20 +130,25 @@ flutter run --dart-define=API_BASE_URL=http://localhost:8080/v1 \
             --dart-define=WS_URL=ws://localhost:8080/v1/stream
 ```
 
-Trigger a payment notification end-to-end (emits `transaction.paid` over WS to any connected client):
+The easiest way to fire dev triggers is the menu CLI in `dev_tools/`:
 
 ```bash
+./dev_tools/trigger.sh    # Mac / Linux / Git Bash
+dev_tools\trigger.bat     # Windows
+```
+
+Or the equivalent raw curls:
+
+```bash
+# Settle a payment
 curl -X POST http://localhost:8080/v1/_dev/trigger-payment \
      -H "Content-Type: application/json" \
-     -d '{"merchant_id": "mch_warung_kosan", "amount": 50000}'
-```
+     -d '{"merchant_id": "mch_01HX3R9WKQF4P2KJ7DZM", "amount": 50000}'
 
-Trigger a merchant capability change (emits `merchant.updated`):
-
-```bash
+# Toggle a capability
 curl -X POST http://localhost:8080/v1/_dev/trigger-merchant-update \
      -H "Content-Type: application/json" \
-     -d '{"merchant_id": "mch_warung_kosan"}'
+     -d '{"merchant_id": "mch_01HX3R9WKQF4P2KJ7DZM", "toggle_scan_cpm": true}'
 ```
 
-See `docs/simulator-guide.md` for the full endpoint reference.
+See `how_to_use.md` for the full hands-on walkthrough and `docs/simulator-guide.md` for the endpoint reference.

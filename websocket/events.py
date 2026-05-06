@@ -1,5 +1,4 @@
-import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from models.merchant import Merchant
@@ -7,8 +6,9 @@ from models.transaction import Transaction
 
 
 def _now_iso() -> str:
-    """Current time as ISO-8601 with UTC offset."""
-    return datetime.now(timezone.utc).astimezone().isoformat()
+    """Current time as ISO-8601 with the Asia/Jakarta (+07:00) offset."""
+    tz = timezone(timedelta(hours=7))
+    return datetime.now(tz).isoformat()
 
 
 def transaction_created_event(transaction: Transaction) -> dict[str, Any]:
@@ -46,15 +46,17 @@ def transaction_expired_event(transaction_id: str, merchant_id: str, expires_at:
     }
 
 
-def transaction_cancelled_event(transaction_id: str, merchant_id: str) -> dict[str, Any]:
+def transaction_cancelled_event(
+    transaction_id: str, merchant_id: str, reason: str | None = None
+) -> dict[str, Any]:
     """Build a transaction.cancelled WS event — Spec §5.3."""
+    data: dict[str, Any] = {"id": transaction_id, "merchant_id": merchant_id}
+    if reason:
+        data["reason"] = reason
     return {
         "event": "transaction.cancelled",
         "ts": _now_iso(),
-        "data": {
-            "id": transaction_id,
-            "merchant_id": merchant_id,
-        },
+        "data": data,
     }
 
 

@@ -1,7 +1,13 @@
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import JSONResponse
 
-from handlers.dev_triggers import trigger_merchant_update, trigger_payment
+from handlers.dev_triggers import (
+    trigger_expire,
+    trigger_fail,
+    trigger_logout,
+    trigger_merchant_update,
+    trigger_payment,
+)
 from handlers.devices import register_push, unregister_push
 from handlers.merchants import (
     claim_merchant,
@@ -67,6 +73,9 @@ def register_routes(app: FastAPI) -> None:
     # --- Dev triggers (not in Spec — for testing only) ---
     app.add_api_route("/v1/_dev/trigger-payment", trigger_payment, methods=["POST"])
     app.add_api_route("/v1/_dev/trigger-merchant-update", trigger_merchant_update, methods=["POST"])
+    app.add_api_route("/v1/_dev/trigger-expire", trigger_expire, methods=["POST"])
+    app.add_api_route("/v1/_dev/trigger-fail", trigger_fail, methods=["POST"])
+    app.add_api_route("/v1/_dev/trigger-logout", trigger_logout, methods=["POST"])
 
     # Health check — handy during Flutter dev.
     @app.get("/health")

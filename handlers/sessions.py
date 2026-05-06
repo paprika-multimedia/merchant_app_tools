@@ -1,7 +1,8 @@
+import json
 import re
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from fixtures.company import COMPANY
 from fixtures.merchants import MERCHANTS
@@ -29,7 +30,6 @@ async def claim_session(request: Request) -> JSONResponse:
 
     body_bytes = await request.body()
     try:
-        import json
         payload = json.loads(body_bytes)
         data = SessionClaimRequest(**payload)
     except Exception:
@@ -62,7 +62,6 @@ async def refresh_session(request: Request) -> JSONResponse:
 
     body_bytes = await request.body()
     try:
-        import json
         payload = json.loads(body_bytes)
         data = SessionRefreshRequest(**payload)
     except Exception:
@@ -81,7 +80,7 @@ async def refresh_session(request: Request) -> JSONResponse:
     )
 
 
-async def logout_session(request: Request) -> JSONResponse:
+async def logout_session(request: Request) -> Response:
     """POST /v1/sessions/logout — Spec §3.2."""
-    # Simulator: nothing to revoke. Return 204.
-    return JSONResponse(status_code=204, content=None)
+    # Simulator: nothing to revoke. Return 204 with no body.
+    return Response(status_code=204)

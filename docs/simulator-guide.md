@@ -116,9 +116,9 @@ Mock data should match the JSX prototype for consistency:
 1. Client connects to `/v1/stream`
 2. Client sends: `{ "type": "auth", "token": "<session_token>" }`
 3. Server validates token (any non-empty = valid in simulator), responds: `{ "type": "auth.ok" }`
-4. Server sends events when triggered:
-   - `{ "type": "transaction.paid", "data": { "id": "txn_...", "merchant_id": "mch_...", "amount": 50000, ... } }`
-   - `{ "type": "merchant.updated", "data": { "id": "mch_...", "capabilities": {...}, ... } }`
+4. Server sends events when triggered (envelope: `event`, `ts`, `data`):
+   - `{ "event": "transaction.paid", "ts": "...", "data": { "id": "txn_...", "merchant_id": "mch_...", "amount": 50000, ... } }`
+   - `{ "event": "merchant.updated", "ts": "...", "data": { "id": "mch_...", "capabilities": {...}, ... } }`
 5. Server sends heartbeat ping every 25 seconds
 
 ---

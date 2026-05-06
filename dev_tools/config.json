@@ -1,0 +1,6 @@
+{
+  "base_url": "http://localhost:8080",
+  "ws_url": "ws://localhost:8080/v1/stream",
+  "session_token": "mock_session_token_30d",
+  "merchant_id": "mch_01HX3R9WKQF4P2KJ7DZM"
+}

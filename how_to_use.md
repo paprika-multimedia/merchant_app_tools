@@ -80,7 +80,7 @@ claiming a session, listing merchants, or firing triggers.
 | Mock session token (for `Authorization: Bearer ...`) | `mock_session_token_30d` |
 | WebSocket URL | `ws://localhost:8080/v1/stream` |
 
-### Merchant IDs
+### Merchant IDs (already linked to the fixture company)
 
 | Name | ID | `scan_cpm` |
 |---|---|---|
@@ -88,18 +88,75 @@ claiming a session, listing merchants, or firing triggers.
 | Kantin Pagi | `mch_01HX3RAKPQ7M3F4P2KJ7E` | on |
 | Gerobak Rica | `mch_01HX3RBGRF4P2KJ7DZQ9W` | off (CPM disabled) |
 
+### Unclaimed merchant code (for `POST /v1/merchants/claim`)
+
+| Name | Merchant code | Result on first claim |
+|---|---|---|
+| Kopi Tenda | `KT9X2JZQ9PKM3F4R7HD8` | `201 Created` + `merchant.added` over WS |
+
+---
+
+## 3a. The easy way — `dev_tools/`
+
+Two stdlib-only scripts share a single config file (`dev_tools/config.json`)
+and remove the need to type curl commands:
+
+| Script | What it does |
+|---|---|
+| `dev_tools/trigger.{sh,bat,py}` | Interactive menu (`1`–`5`), prompts for amount / txn id |
+| `dev_tools/listen.{sh,bat,py}` | Connects to WS, sends auth frame, prints every event |
+
+`dev_tools/config.json` controls them both:
+```json
+{
+  "base_url": "http://localhost:8080",
+  "ws_url": "ws://localhost:8080/v1/stream",
+  "session_token": "mock_session_token_30d",
+  "merchant_id": "mch_01HX3R9WKQF4P2KJ7DZM"
+}
+```
+
+Typical three-terminal flow:
+
+```bash
+# Terminal 1 — server
+./run.sh
+
+# Terminal 2 — listen for events
+./dev_tools/listen.sh
+
+# Terminal 3 — fire triggers from the menu
+./dev_tools/trigger.sh
+```
+
+The trigger menu:
+```
+1) Trigger payment           (asks for amount, settles via WS after delay)
+2) Expire pending txn        (asks for transaction id)
+3) Fail pending txn          (asks for transaction id + optional reason)
+4) Toggle merchant scan_cpm
+5) Force-logout device
+q) Quit
+```
+
+If you change the simulator port or want to target a different merchant, edit
+`dev_tools/config.json` once — both scripts pick it up.
+
 ---
 
 ## 4. Dev triggers — overview
 
-The simulator exposes two endpoints under `/v1/_dev/` for manual testing.
-They are **not** in the API spec; they exist so you can fake real-world events
-during development.
+The simulator exposes endpoints under `/v1/_dev/` for manual testing. They are
+**not** in the API spec; they exist so you can fake real-world events during
+development. None of them require a Bearer token.
 
 | Endpoint | Emits over WS | Useful for |
 |---|---|---|
-| `POST /v1/_dev/trigger-payment` | `transaction.paid` (after delay) | Testing the "Payment received" notification flow |
-| `POST /v1/_dev/trigger-merchant-update` | `merchant.updated` (immediate) | Testing capability changes (e.g. CPM toggle) |
+| `POST /v1/_dev/trigger-payment` | `transaction.paid` (after delay) | "Payment received" notification flow |
+| `POST /v1/_dev/trigger-merchant-update` | `merchant.updated` (immediate) | Capability changes (e.g. CPM toggle) |
+| `POST /v1/_dev/trigger-expire` | `transaction.expired` (immediate) | Expired-payment UI on a pending txn |
+| `POST /v1/_dev/trigger-fail` | `transaction.failed` (immediate) | CPM decline / payment failure UI |
+| `POST /v1/_dev/trigger-logout` | `device.logged_out` (immediate) | Forced-logout flow on the device |
 
 > WebSocket events are only delivered to **currently connected** clients. If
 > nothing is listening, the trigger still succeeds but no client sees it.
@@ -147,8 +204,9 @@ After `PAYMENT_SETTLE_DELAY_MS` (default 3 s), every connected WS client
 receives:
 ```json
 {
-  "type": "transaction.paid",
-  "transaction": {
+  "event": "transaction.paid",
+  "ts": "2026-05-04T14:00:00+07:00",
+  "data": {
     "id": "txn_XXXXXXXXXXXXXXXXXXXX",
     "merchant_id": "mch_01HX3R9WKQF4P2KJ7DZM",
     "type": "qris",
@@ -184,14 +242,57 @@ curl -X POST http://localhost:8080/v1/_dev/trigger-merchant-update \
 Connected WS clients receive:
 ```json
 {
-  "type": "merchant.updated",
-  "merchant": { "...": "...", "capabilities": { "scan_cpm": false, "cpm_ceiling": null } }
+  "event": "merchant.updated",
+  "ts": "2026-05-04T14:00:00+07:00",
+  "data": { "id": "mch_...", "capabilities": { "scan_cpm": false, "cpm_ceiling": null }, "...": "..." }
 }
 ```
 
 ---
 
-## 7. End-to-end: drive the Flutter app
+## 7. Other dev triggers
+
+### Expire a pending transaction
+
+```bash
+curl -X POST http://localhost:8080/v1/_dev/trigger-expire \
+  -H "Content-Type: application/json" \
+  -d '{"transaction_id":"txn_..."}'
+```
+Marks the txn `expired` and emits `transaction.expired`. 409 if already settled.
+
+### Fail a pending transaction
+
+```bash
+curl -X POST http://localhost:8080/v1/_dev/trigger-fail \
+  -H "Content-Type: application/json" \
+  -d '{"transaction_id":"txn_...","reason":"insufficient_funds"}'
+```
+Marks the txn `failed` and emits `transaction.failed` (with `reason` if supplied).
+
+### Force-logout the device
+
+```bash
+curl -X POST http://localhost:8080/v1/_dev/trigger-logout \
+  -H "Content-Type: application/json" \
+  -d '{"reason":"remote_revoke"}'
+```
+Emits `device.logged_out` to all connected WS clients. The Flutter app should
+clear its session and bounce to login.
+
+### Settle an existing pending transaction (instead of creating one)
+
+```bash
+curl -X POST http://localhost:8080/v1/_dev/trigger-payment \
+  -H "Content-Type: application/json" \
+  -d '{"transaction_id":"txn_..."}'
+```
+Useful for testing the QRIS flow end-to-end: create a dynamic QR from the app,
+copy the returned `id`, then settle it from a separate terminal.
+
+---
+
+## 8. End-to-end: drive the Flutter app
 
 ```bash
 # Terminal 1 — simulator
@@ -214,7 +315,7 @@ When onboarding asks for a company code, paste `A4F28K19PQ7M3XR9LB42`.
 
 ---
 
-## 8. Troubleshooting
+## 9. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
@@ -228,11 +329,11 @@ When onboarding asks for a company code, paste `A4F28K19PQ7M3XR9LB42`.
 
 ---
 
-## 9. Run the test suite
+## 10. Run the test suite
 
 ```bash
 pytest -q
 ```
 
-44 tests across idempotency, error localisation, wire shapes, WS events, and
-handler integration. All should pass before you trust the simulator.
+Idempotency, error localisation, wire shapes, WS events, and handler
+integration. All should pass before you trust the simulator.

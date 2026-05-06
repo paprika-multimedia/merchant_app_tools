@@ -2,14 +2,17 @@ import json
 import re
 
 from fastapi import Request
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
 from fixtures.company import COMPANY
-from fixtures.merchants import MERCHANT_CODE_INDEX, MERCHANTS
+from fixtures.merchants import (
+    MERCHANT_CODE_INDEX,
+    MERCHANTS,
+    UNCLAIMED_MERCHANTS,
+)
 from middleware.idempotency import check_idempotency, get_device_id, store_idempotency
 from middleware.language import get_locale
 from models.errors import make_error
-from models.merchant import Capabilities, Merchant
 from models.requests import MerchantClaimRequest, MerchantDeleteRequest
 from websocket.events import merchant_added_event, merchant_removed_event
 from websocket.handler import broadcast
@@ -69,18 +72,27 @@ async def claim_merchant(request: Request) -> JSONResponse:
     if merchant_id is None:
         return JSONResponse(status_code=404, content=make_error("not_found", locale))
 
-    merchant = MERCHANTS.get(merchant_id)
-    if merchant is None:
-        return JSONResponse(status_code=404, content=make_error("not_found", locale))
-
-    # Check if already linked to this company (idempotent → 200).
-    if merchant.company_id == COMPANY.id:
-        body = merchant.model_dump(by_alias=True, exclude_none=True)
+    # Already linked to this company (idempotent → 200).
+    claimed = MERCHANTS.get(merchant_id)
+    if claimed is not None and claimed.company_id == COMPANY.id:
+        body = claimed.model_dump(by_alias=True, exclude_none=True)
         if idempotency_key:
             store_idempotency(idempotency_key, device_id, body_bytes, 200, body)
         return JSONResponse(status_code=200, content=body)
 
-    # Check if claimed by a different company.
+    # Newly linked: take from the unclaimed pool — Spec §4.2.1.
+    pending = UNCLAIMED_MERCHANTS.get(merchant_id)
+    if pending is not None:
+        linked = pending.model_copy(update={"company_id": COMPANY.id})
+        MERCHANTS[merchant_id] = linked
+        del UNCLAIMED_MERCHANTS[merchant_id]
+        body = linked.model_dump(by_alias=True, exclude_none=True)
+        if idempotency_key:
+            store_idempotency(idempotency_key, device_id, body_bytes, 201, body)
+        await broadcast(merchant_added_event(linked))
+        return JSONResponse(status_code=201, content=body)
+
+    # Code resolves to a merchant claimed by a different company.
     body_409 = make_error("claimed_elsewhere", locale)
     if idempotency_key:
         store_idempotency(idempotency_key, device_id, body_bytes, 409, body_409)
@@ -116,7 +128,7 @@ async def delete_merchant(request: Request, merchant_id: str) -> JSONResponse:
     # Broadcast merchant.removed to all connected WS clients — Spec §5.3.
     await broadcast(merchant_removed_event(merchant_id, name))
 
-    return JSONResponse(status_code=204, content=None)
+    return Response(status_code=204)
 
 
 async def seen_merchant(request: Request, merchant_id: str) -> JSONResponse:
@@ -141,8 +153,8 @@ async def get_company(request: Request) -> JSONResponse:
     )
 
 
-async def seen_company(request: Request) -> JSONResponse:
+async def seen_company(request: Request) -> Response:
     """POST /v1/company/seen — Spec §4.1, resets unread_count on all merchants."""
     for mid, merchant in list(MERCHANTS.items()):
         MERCHANTS[mid] = merchant.model_copy(update={"unread_count": 0})
-    return JSONResponse(status_code=200, content=None)
+    return Response(status_code=204)
