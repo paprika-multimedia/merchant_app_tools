@@ -26,3 +26,6 @@ Thumbs.db
 
 # Deletion archive
 .delete_this/
+
+# Generated QR images from dev_tools/trigger.py option 6
+dev_tools/output/

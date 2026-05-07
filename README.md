@@ -64,10 +64,16 @@ The trigger menu:
 3) Fail pending txn          (asks for transaction id + optional reason)
 4) Toggle merchant scan_cpm
 5) Force-logout device
+6) Generate QR image         (scannable PNG saved to dev_tools/output/)
+   ├─ a) CPM customer QR      (8 issuers — for the merchant Scan-QRIS flow)
+   ├─ b) Company onboarding QR (Kos Pak Harso — for session claim)
+   ├─ c) Merchant claim QR    (4 fixture merchants — for add-merchant flow)
+   └─ d) Custom payload       (raw text)
 ```
 
 Edit `dev_tools/config.json` if you run on a different port or want to target a
-different merchant.
+different merchant. Option 6 also requires the `qrcode[pil]` package, which is
+in `requirements.txt`.
 
 ---
 

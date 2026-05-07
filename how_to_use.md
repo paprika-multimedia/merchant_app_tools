@@ -136,8 +136,21 @@ The trigger menu:
 3) Fail pending txn          (asks for transaction id + optional reason)
 4) Toggle merchant scan_cpm
 5) Force-logout device
+6) Generate QR image         (scannable PNG saved to dev_tools/output/)
 q) Quit
 ```
+
+Option 6 has its own sub-menu:
+
+| Sub | What it generates | Encoded payload | Useful for |
+|---|---|---|---|
+| a | CPM customer QR | faux QRIS string with the chosen issuer name | Pointing the merchant app's camera at it during the **Scan-QRIS / CPM** flow |
+| b | Company onboarding QR | `paprika://company/A4F28K19PQ7M3XR9LB42` | First-launch **session-claim** flow |
+| c | Merchant claim QR | `paprika://merchant/<code>` for any fixture merchant | The **add-merchant** flow — pick Kopi Tenda for the 201 path, others for 200 |
+| d | Custom payload | whatever you type | Edge cases / negative testing |
+
+Generated PNGs land in `dev_tools/output/` (gitignored). The script offers to
+open the file in your default image viewer when it's done.
 
 If you change the simulator port or want to target a different merchant, edit
 `dev_tools/config.json` once — both scripts pick it up.
