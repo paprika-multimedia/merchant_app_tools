@@ -158,14 +158,36 @@ def _open_in_default_viewer(path: Path) -> None:
         print(f"  Could not open viewer: {e}")
 
 
+# def action_payment(cfg: dict[str, Any]) -> None:
+#     amount = prompt_amount()
+#     status, body = post(
+#         cfg["base_url"],
+#         "/v1/_dev/trigger-payment",
+#         {"merchant_id": cfg["merchant_id"], "amount": amount},
+#     )
+#     show_response(status, body)
+
+
+
 def action_payment(cfg: dict[str, Any]) -> None:
-    amount = prompt_amount()
+    txn_id = prompt("Transaction id (txn_...)")
+
+    if not txn_id:
+        print("  No id supplied — cancelled.\n")
+        return
+
     status, body = post(
         cfg["base_url"],
         "/v1/_dev/trigger-payment",
-        {"merchant_id": cfg["merchant_id"], "amount": amount},
+        {
+            "transaction_id": txn_id,
+        },
     )
+
     show_response(status, body)
+
+
+    
 
 
 def action_expire(cfg: dict[str, Any]) -> None:
