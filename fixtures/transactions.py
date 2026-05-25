@@ -133,7 +133,7 @@ _notes = [
     "Sate Ayam 1 Porsi", "Cemilan Keripik", "Laundry Kiloan", "Aqua Gelas"
 ]
 
-for i in range(1, 201):
+for i in range(1, 801):
     # Spread transactions chronologically, roughly every 3 hours
     minutes_ago = i * 180 + _rng.randint(-45, 45)
     created_dt = _base_time - timedelta(minutes=minutes_ago)
@@ -256,4 +256,9 @@ INVOICE_TAKEN: dict[tuple[str, str], bool] = {}
 for t in SEED_TRANSACTIONS:
     if t.invoice_number:
         INVOICE_TAKEN[(t.merchant_id, t.invoice_number)] = True
+
+import logging
+logger = logging.getLogger("fixtures.transactions")
+logger.info("Loaded %d transactions (including 800 generated dummy records).", len(TRANSACTIONS))
+
 
