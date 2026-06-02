@@ -118,7 +118,7 @@ SEED_TRANSACTIONS: list[Transaction] = [
     ),
 ]
 
-# Generate 200 deterministic dummy transactions to simulate active transaction history
+# Generate 800 deterministic dummy transactions to simulate active transaction history
 import random
 from datetime import datetime, timedelta, timezone
 

@@ -25,6 +25,7 @@ from handlers.transactions import (
     create_qris,
     get_transaction,
     list_transactions,
+    resolve_transaction,
     scan_cpm,
 )
 from websocket.handler import ws_endpoint
@@ -62,6 +63,7 @@ def register_routes(app: FastAPI) -> None:
     # --- Transactions (global) ---
     app.add_api_route("/v1/transactions/{transaction_id}", get_transaction, methods=["GET"])
     app.add_api_route("/v1/transactions/{transaction_id}/cancel", cancel_transaction, methods=["POST"])
+    app.add_api_route("/v1/transactions/resolve", resolve_transaction, methods=["POST"])
 
     # --- Devices / push ---
     app.add_api_route("/v1/devices/me/push", register_push, methods=["POST"])

@@ -79,3 +79,7 @@ class PushRegisterRequest(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
     push_token: str = Field(alias="push_token")
+
+
+class ResolveTransactionRequest(BaseModel):
+    qr_payload: str

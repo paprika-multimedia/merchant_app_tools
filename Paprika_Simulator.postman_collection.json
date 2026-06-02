@@ -1,0 +1,1125 @@
+{
+  "info": {
+    "name": "Paprika Merchant Simulator",
+    "_postman_id": "paprika-merchant-simulator-v1",
+    "description": "Collection lengkap untuk Paprika Backend Simulator.\n\n**Setup awal:**\n1. Set variable `base_url` ke `http://10.10.10.32:8080` (atau `http://localhost:8080`)\n2. Jalankan **[Auth] Claim Session** lalu copy `session_token` dari response ke variable `token`\n3. Semua request bertanda 🔒 membutuhkan Bearer token\n\n**Fixture credentials:**\n- Company code: `A4F28K19PQ7M3XR9LB42`\n- Mock token: `mock_session_token_30d`\n\n**Merchant IDs:**\n- Warung Kosan: `mch_01HX3R9WKQF4P2KJ7DZM`\n- Kantin Pagi: `mch_01HX3RAKPQ7M3F4P2KJ7E`\n- Gerobak Rica: `mch_01HX3RBGRF4P2KJ7DZQ9W`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://192.168.0.102:8080",
+      "type": "string",
+      "description": "Ganti sesuai IP komputer yang menjalankan simulator"
+    },
+    {
+      "key": "token",
+      "value": "mock_session_token_30d",
+      "type": "string",
+      "description": "Session token — diisi otomatis setelah Claim Session"
+    },
+    {
+      "key": "merchant_id_wk",
+      "value": "mch_01HX3R9WKQF4P2KJ7DZM",
+      "type": "string",
+      "description": "Warung Kosan — CPM enabled"
+    },
+    {
+      "key": "merchant_id_kp",
+      "value": "mch_01HX3RAKPQ7M3F4P2KJ7E",
+      "type": "string",
+      "description": "Kantin Pagi — CPM enabled"
+    },
+    {
+      "key": "merchant_id_gr",
+      "value": "mch_01HX3RBGRF4P2KJ7DZQ9W",
+      "type": "string",
+      "description": "Gerobak Rica — CPM disabled"
+    },
+    {
+      "key": "transaction_id",
+      "value": "",
+      "type": "string",
+      "description": "Diisi otomatis setelah Create QRIS / Link / Scan CPM"
+    }
+  ],
+  "item": [
+    {
+      "name": "🏥 Health Check",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/health",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "health"
+              ]
+            },
+            "description": "Cek apakah server simulator sedang berjalan."
+          },
+          "response": [
+            {
+              "name": "OK",
+              "status": "OK",
+              "code": 200,
+              "body": "{\"status\":\"ok\"}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "🔐 Auth — Sessions",
+      "item": [
+        {
+          "name": "Claim Session (Login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.session_token) {",
+                  "    pm.collectionVariables.set('token', res.session_token);",
+                  "    console.log('✅ Token saved:', res.session_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"company_code\": \"A4F28K19PQ7M3XR9LB42\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/sessions/claim",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "sessions",
+                "claim"
+              ]
+            },
+            "description": "Login menggunakan company code. Script otomatis menyimpan `session_token` ke variable koleksi.\n\n**Company code fixture:** `A4F28K19PQ7M3XR9LB42`"
+          }
+        },
+        {
+          "name": "Refresh Session",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh_token\": \"mock_refresh_token_90d\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/sessions/refresh",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "sessions",
+                "refresh"
+              ]
+            },
+            "description": "Refresh session token menggunakan refresh token."
+          }
+        },
+        {
+          "name": "Logout Session",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/sessions/logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "sessions",
+                "logout"
+              ]
+            },
+            "description": "🔒 Logout dan cabut sesi aktif. Response: 204 No Content."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏢 Company",
+      "item": [
+        {
+          "name": "Get Company",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/company",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "company"
+              ]
+            },
+            "description": "🔒 Ambil data company yang terhubung ke sesi saat ini."
+          }
+        },
+        {
+          "name": "Mark Company Seen",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/company/seen",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "company",
+                "seen"
+              ]
+            },
+            "description": "🔒 Reset unread_count company ke 0."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🏪 Merchants",
+      "item": [
+        {
+          "name": "List Merchants",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/merchants",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants"
+              ]
+            },
+            "description": "🔒 Ambil semua merchant yang terdaftar di company ini.\n\n**Fixture merchants:**\n- Warung Kosan (`mch_01HX3R9WKQF4P2KJ7DZM`) — CPM ✅\n- Kantin Pagi (`mch_01HX3RAKPQ7M3F4P2KJ7E`) — CPM ✅\n- Gerobak Rica (`mch_01HX3RBGRF4P2KJ7DZQ9W`) — CPM ❌"
+          }
+        },
+        {
+          "name": "Get Merchant — Warung Kosan",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_wk}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_wk}}"
+              ]
+            },
+            "description": "🔒 Ambil detail satu merchant (Warung Kosan)."
+          }
+        },
+        {
+          "name": "Get Merchant — Kantin Pagi",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_kp}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_kp}}"
+              ]
+            },
+            "description": "🔒 Ambil detail satu merchant (Kantin Pagi)."
+          }
+        },
+        {
+          "name": "Claim Merchant (Kopi Tenda — 201 path)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_code\": \"KT9X2JZQ9PKM3F4R7HD8\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/claim",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "claim"
+              ]
+            },
+            "description": "🔒 Klaim merchant baru menggunakan merchant code.\n\n**Kode unclaimed (→ 201 Created + WS event `merchant.added`):**\n`KT9X2JZQ9PKM3F4R7HD8` (Kopi Tenda)\n\n**Kode yang sudah claimed (→ 200 OK):**\n`WK4F82D19PQ7M3XR9LB4`, `KP7M3F4P2KJ7DZQ9WK4F8`, `GR4P2KJ7DZQ9WK4F8M3F4`"
+          }
+        },
+        {
+          "name": "Mark Merchant Seen — Warung Kosan",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_wk}}/seen",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_wk}}",
+                "seen"
+              ]
+            },
+            "description": "🔒 Reset unread_count merchant ke 0."
+          }
+        },
+        {
+          "name": "Delete Merchant",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"confirm_name\": \"Warung Kosan\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_wk}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_wk}}"
+              ]
+            },
+            "description": "🔒 ⚠️ Hapus merchant dari company. `confirm_name` harus sama persis dengan nama merchant (case-sensitive)."
+          }
+        }
+      ]
+    },
+    {
+      "name": "💳 Transactions",
+      "item": [
+        {
+          "name": "List Transactions — Warung Kosan",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_wk}}/transactions?limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_wk}}",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20",
+                  "description": "Max 100"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "description": "Cursor dari next_cursor response sebelumnya (untuk pagination)",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "paid",
+                  "description": "Filter status: pending | paid | expired | cancelled | failed | refunded",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "qris",
+                  "description": "Filter tipe: qris | link | cpm",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "🔒 Ambil daftar transaksi merchant (Warung Kosan), diurutkan terbaru dahulu.\n\n**Query params:**\n- `limit` — max 100, default 20\n- `cursor` — untuk pagination (nilai dari `next_cursor` response sebelumnya)\n- `status` — filter: `pending | paid | expired | cancelled | failed | refunded`\n- `type` — filter: `qris | link | cpm`"
+          }
+        },
+        {
+          "name": "List Transactions — Kantin Pagi",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_kp}}/transactions?limit=20",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_kp}}",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "limit",
+                  "value": "20"
+                },
+                {
+                  "key": "cursor",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "paid",
+                  "disabled": true
+                },
+                {
+                  "key": "type",
+                  "value": "qris",
+                  "disabled": true
+                }
+              ]
+            },
+            "description": "🔒 Ambil daftar transaksi merchant (Kantin Pagi)."
+          }
+        },
+        {
+          "name": "Get Transaction (by ID)",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/transactions/{{transaction_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "transactions",
+                "{{transaction_id}}"
+              ]
+            },
+            "description": "🔒 Ambil detail satu transaksi berdasarkan ID.\n\nIsi variable `transaction_id` terlebih dahulu."
+          }
+        },
+        {
+          "name": "Create Dynamic QRIS",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.transaction && res.transaction.id) {",
+                  "    pm.collectionVariables.set('transaction_id', res.transaction.id);",
+                  "    console.log('✅ Transaction ID saved:', res.transaction.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"amount\": 50000,\n  \"note\": \"Test QRIS dari Postman\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_wk}}/qris",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_wk}}",
+                "qris"
+              ]
+            },
+            "description": "🔒 Buat transaksi QRIS dinamis (status awal: `pending`).\nScript otomatis menyimpan `transaction_id` ke variable koleksi.\n\nSetelah ini, gunakan **[Dev] Trigger Payment** untuk settle transaksi via WebSocket."
+          }
+        },
+        {
+          "name": "Create Payment Link",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.transaction && res.transaction.id) {",
+                  "    pm.collectionVariables.set('transaction_id', res.transaction.id);",
+                  "    console.log('✅ Transaction ID saved:', res.transaction.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Sewa Kamar Bulan Mei\",\n  \"amount\": 850000,\n  \"customer\": \"Andi\",\n  \"invoice_number\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_wk}}/links",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_wk}}",
+                "links"
+              ]
+            },
+            "description": "🔒 Buat payment link (status awal: `pending`, berlaku 24 jam).\nScript otomatis menyimpan `transaction_id`.\n\n`invoice_number` bisa dikosongkan (auto-generate) atau diisi format `^[A-Z0-9-]{1,40}$`."
+          }
+        },
+        {
+          "name": "Scan CPM (Customer QR)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "const res = pm.response.json();",
+                  "if (res.transaction && res.transaction.id) {",
+                  "    pm.collectionVariables.set('transaction_id', res.transaction.id);",
+                  "    console.log('✅ Transaction ID saved:', res.transaction.id);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"qr_payload\": \"00020101021226680014ID.CO.BCA.WWW01189360002800000000011212345678905204581453033605802ID5910Test Store6013Jakarta Selatan6304BCA\",\n  \"amount\": 75000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/merchants/{{merchant_id_wk}}/scan",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "merchants",
+                "{{merchant_id_wk}}",
+                "scan"
+              ]
+            },
+            "description": "🔒 Proses scan QRIS CPM (merchant scan QR pelanggan).\nMembutuhkan `Idempotency-Key` (WAJIB).\n\n**Catatan:**\n- Merchant harus punya `scan_cpm: true` (Gerobak Rica tidak bisa!)\n- `amount` min 1000, max = `cpm_ceiling` (default 2.000.000)\n- Simulator parse `issuer_name` dari `qr_payload`"
+          }
+        },
+        {
+          "name": "Cancel Transaction",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "{{$guid}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"customer_request\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/transactions/{{transaction_id}}/cancel",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "transactions",
+                "{{transaction_id}}",
+                "cancel"
+              ]
+            },
+            "description": "🔒 Batalkan transaksi yang masih `pending`.\nEmits `transaction.cancelled` ke WebSocket.\n\n`reason` bersifat opsional."
+          }
+        }
+      ]
+    },
+    {
+      "name": "📱 Devices / Push",
+      "item": [
+        {
+          "name": "Register Push Token",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"push_token\": \"ExponentPushToken[xxxxxxxxxxxxxxxxxxxxxxxx]\",\n  \"platform\": \"android\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/devices/me/push",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "devices",
+                "me",
+                "push"
+              ]
+            },
+            "description": "🔒 Daftarkan push notification token untuk perangkat ini."
+          }
+        },
+        {
+          "name": "Unregister Push Token",
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/v1/devices/me/push",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "devices",
+                "me",
+                "push"
+              ]
+            },
+            "description": "🔒 Hapus push notification token perangkat ini."
+          }
+        }
+      ]
+    },
+    {
+      "name": "🛠️ Dev Triggers (Testing Only)",
+      "item": [
+        {
+          "name": "[Dev] Trigger Payment (create + settle)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_id\": \"mch_01HX3R9WKQF4P2KJ7DZM\",\n  \"amount\": 50000\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/_dev/trigger-payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "_dev",
+                "trigger-payment"
+              ]
+            },
+            "description": "Simulasikan pembayaran masuk. Tidak butuh Bearer token.\n\n**Mode 1 — Buat + settle transaksi baru:**\n```json\n{ \"merchant_id\": \"...\", \"amount\": 50000 }\n```\n\n**Mode 2 — Settle transaksi pending yang sudah ada:**\n```json\n{ \"transaction_id\": \"txn_...\" }\n```\n\nSetelah `PAYMENT_SETTLE_DELAY_MS` (default 3 detik), emits `transaction.paid` + `merchant.updated` ke semua WS client."
+          }
+        },
+        {
+          "name": "[Dev] Trigger Payment (settle existing)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{transaction_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/_dev/trigger-payment",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "_dev",
+                "trigger-payment"
+              ]
+            },
+            "description": "Settle transaksi pending yang sudah ada (gunakan ID dari Create QRIS / Scan CPM).\n\nVariable `transaction_id` harus sudah diisi."
+          }
+        },
+        {
+          "name": "[Dev] Trigger Merchant Update (toggle CPM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"merchant_id\": \"mch_01HX3R9WKQF4P2KJ7DZM\",\n  \"toggle_scan_cpm\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/_dev/trigger-merchant-update",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "_dev",
+                "trigger-merchant-update"
+              ]
+            },
+            "description": "Emits `merchant.updated` ke semua WS client.\n\n- `toggle_scan_cpm: true` → flip kapabilitas CPM ON↔OFF\n- `toggle_scan_cpm: false` atau dihapus → emit state saat ini tanpa mengubah apa pun"
+          }
+        },
+        {
+          "name": "[Dev] Trigger Expire Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{transaction_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/_dev/trigger-expire",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "_dev",
+                "trigger-expire"
+              ]
+            },
+            "description": "Tandai transaksi `pending` menjadi `expired` dan emit `transaction.expired` ke WS.\n\nReturns 409 jika transaksi sudah settled."
+          }
+        },
+        {
+          "name": "[Dev] Trigger Fail Transaction",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transaction_id\": \"{{transaction_id}}\",\n  \"reason\": \"insufficient_funds\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/_dev/trigger-fail",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "_dev",
+                "trigger-fail"
+              ]
+            },
+            "description": "Tandai transaksi `pending` menjadi `failed` dan emit `transaction.failed` ke WS.\n\n`reason` bersifat opsional. Contoh: `insufficient_funds`, `card_expired`, `rejected`."
+          }
+        },
+        {
+          "name": "[Dev] Force Logout Device",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"remote_revoke\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/v1/_dev/trigger-logout",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "v1",
+                "_dev",
+                "trigger-logout"
+              ]
+            },
+            "description": "Emits `device.logged_out` ke semua WS client yang terhubung.\n\nAplikasi Flutter harus membersihkan sesi dan kembali ke halaman login.\n\n`reason` default: `remote_revoke`."
+          }
+        }
+      ]
+    }
+  ]
+}

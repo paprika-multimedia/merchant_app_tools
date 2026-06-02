@@ -11,7 +11,7 @@ from fixtures.transactions import INVOICE_COUNTERS, INVOICE_TAKEN, TRANSACTIONS
 from middleware.idempotency import check_idempotency, get_device_id, store_idempotency
 from middleware.language import get_locale
 from models.errors import make_error
-from models.requests import LinkCreateRequest, QrisCreateRequest, ScanRequest
+from models.requests import LinkCreateRequest, QrisCreateRequest, ScanRequest,ResolveTransactionRequest
 from models.transaction import Cpm, Transaction
 from websocket.events import transaction_cancelled_event, transaction_created_event
 from websocket.handler import broadcast
@@ -95,6 +95,26 @@ async def create_qris(request: Request, merchant_id: str) -> JSONResponse:
 
     txn_id = _new_txn_id()
     expires_at = _now_plus(minutes=15)
+
+    # qr_payload = (
+    #     f"00020101021226680014ID.CO.PAPRIKA.SIM"
+    #     f"0118{merchant_id[:16]}"
+    #     f"5204000053033605802ID"
+    #     f"5925{merchant.name[:25]}"
+    #     f"6013Jakarta Pusat"
+    #     f"6304ABCD"
+    # )
+
+    qr_payload = (
+        f"00020101021226680014ID.CO.PAPRIKA.SIM"
+        f"0118{merchant_id[:16]}"
+        f"990{len(txn_id):02d}{txn_id}"
+        f"5204000053033605802ID"
+        f"5925{merchant.name[:25]}"
+        f"6013Jakarta Pusat"
+        f"6304ABCD"
+    )
+
     txn = Transaction(
         id=txn_id,
         merchant_id=merchant_id,
@@ -104,14 +124,16 @@ async def create_qris(request: Request, merchant_id: str) -> JSONResponse:
         amount=data.amount,
         status="pending",
         note=data.note,
+        qr_payload=qr_payload,
         created_at=_now_jakarta(),
         expires_at=expires_at,
     )
+    
     TRANSACTIONS[txn_id] = txn
 
     response_body = {
         "transaction": txn.model_dump(by_alias=True, exclude_none=True),
-        "qr_payload": f"00020101021226680014ID.CO.PAPRIKA.SIM0118{merchant_id[:16]}5204000053033605802ID5925{merchant.name[:25]}6013Jakarta Pusat6304ABCD",
+        "qr_payload": qr_payload,
         "qr_image_url": f"https://api.paprika.app/v1/qris/{txn_id}.svg",
         "expires_at": expires_at,
     }
@@ -371,3 +393,53 @@ async def cancel_transaction(request: Request, transaction_id: str) -> JSONRespo
     await broadcast(transaction_cancelled_event(transaction_id, txn.merchant_id, reason))
 
     return JSONResponse(status_code=200, content=body)
+
+
+
+async def resolve_transaction(
+    request: Request,
+) -> JSONResponse:
+    locale = get_locale()
+
+    try:
+        payload = json.loads(await request.body())
+        data = ResolveTransactionRequest(**payload)
+
+        txn = next(
+            (
+                t
+                for t in TRANSACTIONS.values()
+                if getattr(t, "qr_payload", None) == data.qr_payload
+            ),
+            None,
+        )
+
+        if txn is None:
+            return JSONResponse(
+                status_code=404,
+                content=make_error("not_found", locale),
+            )
+
+        print("FOUND TXN:", txn)
+
+        result = txn.model_dump(
+            by_alias=True,
+            exclude_none=True,
+        )
+
+        print("RESULT:", result)
+
+        return JSONResponse(
+            status_code=200,
+            content=result,
+        )
+
+    except Exception as e:
+        import traceback
+
+        traceback.print_exc()
+
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)},
+        )

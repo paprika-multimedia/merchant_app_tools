@@ -22,6 +22,29 @@ class Cpm(BaseModel):
     # payer_name is NEVER included in mobile-facing responses per Spec §2.3 hard rule.
 
 
+# class Transaction(BaseModel):
+#     """Transaction resource — Spec.md §2.3."""
+
+#     model_config = ConfigDict(populate_by_name=True)
+
+#     id: str
+#     merchant_id: str = Field(alias="merchant_id")
+#     type: Literal["qris", "link", "cpm"]
+#     title: str
+#     ref: str
+#     amount: int
+#     status: Literal["pending", "paid", "expired", "cancelled", "failed", "refunded"]
+#     customer: str | None = None
+#     note: str | None = None
+#     invoice_number: str | None = Field(alias="invoice_number", default=None)
+#     link_url: str | None = Field(alias="link_url", default=None)
+#     payer: Payer | None = None
+#     cpm: Cpm | None = None
+#     created_at: str = Field(alias="created_at")
+#     paid_at: str | None = Field(alias="paid_at", default=None)
+#     expires_at: str | None = Field(alias="expires_at", default=None)
+
+
 class Transaction(BaseModel):
     """Transaction resource — Spec.md §2.3."""
 
@@ -34,6 +57,9 @@ class Transaction(BaseModel):
     ref: str
     amount: int
     status: Literal["pending", "paid", "expired", "cancelled", "failed", "refunded"]
+
+    qr_payload: str | None = Field(alias="qr_payload", default=None)
+
     customer: str | None = None
     note: str | None = None
     invoice_number: str | None = Field(alias="invoice_number", default=None)
